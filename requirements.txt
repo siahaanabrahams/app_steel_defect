@@ -1,0 +1,7 @@
+streamlit
+ultralytics
+pillow
+pandas
+numpy
+cv2 
+psycpog2
