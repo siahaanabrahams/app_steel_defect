@@ -5,7 +5,7 @@ BEGIN;
 
 CREATE TABLE IF NOT EXISTS public.final_defect
 (
-    id_final integer NOT NULL DEFAULT nextval('final_id_seq'::regclass),
+    id_final serial NOT NULL,
     path_gambar character varying COLLATE pg_catalog."default" NOT NULL,
     class character varying COLLATE pg_catalog."default" NOT NULL,
     conf_level integer NOT NULL,
@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS public.final_defect
     id_defect integer,
     id_user integer NOT NULL,
     id_training integer,
-    created_at time with time zone NOT NULL DEFAULT now(),
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
     CONSTRAINT final_pkey PRIMARY KEY (id_final)
 );
 
@@ -25,28 +25,28 @@ CREATE TABLE IF NOT EXISTS public.operation
 (
     id_operation serial NOT NULL,
     start_time timestamp with time zone NOT NULL DEFAULT now(),
-    end_time time with time zone NOT NULL DEFAULT now(),
-    created_at time with time zone NOT NULL DEFAULT now(),
+    end_time timestamp with time zone NOT NULL DEFAULT now(),
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
     id_user integer NOT NULL,
     CONSTRAINT operation_pkey PRIMARY KEY (id_operation)
 );
 
 CREATE TABLE IF NOT EXISTS public.production_anomaly
 (
-    id_anomaly integer NOT NULL DEFAULT nextval('anomaly_id_seq'::regclass),
+    id_anomaly serial NOT NULL,
     path_gambar character varying COLLATE pg_catalog."default" NOT NULL,
     conf_level integer NOT NULL,
     xo integer NOT NULL,
     y0 integer NOT NULL,
     x1 integer NOT NULL,
     y1 integer NOT NULL,
-    created_at time with time zone DEFAULT now(),
+    created_at timestamp with time zone DEFAULT now(),
     CONSTRAINT anomaly_pkey PRIMARY KEY (id_anomaly)
 );
 
 CREATE TABLE IF NOT EXISTS public.production_defect
 (
-    id_defect integer NOT NULL DEFAULT nextval('defect_id_seq'::regclass),
+    id_defect serial NOT NULL,
     path_gambar character varying COLLATE pg_catalog."default" NOT NULL,
     class character varying COLLATE pg_catalog."default" NOT NULL,
     conf_level integer NOT NULL,
@@ -54,13 +54,13 @@ CREATE TABLE IF NOT EXISTS public.production_defect
     y0 integer NOT NULL,
     x1 integer NOT NULL,
     y1 integer NOT NULL,
-    created_at time with time zone NOT NULL DEFAULT now(),
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
     CONSTRAINT defect_pkey PRIMARY KEY (id_defect)
 );
 
 CREATE TABLE IF NOT EXISTS public.training
 (
-    id_training integer NOT NULL DEFAULT nextval('training_id_seq'::regclass),
+    id_training serial NOT NULL,
     path_weight character varying(100) COLLATE pg_catalog."default" NOT NULL,
     start_time timestamp with time zone NOT NULL,
     end_time timestamp with time zone NOT NULL,
@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS public.training
 
 CREATE TABLE IF NOT EXISTS public.user_admin
 (
-    id_user integer NOT NULL DEFAULT nextval('users_user_id_seq'::regclass),
+    id_user integer NOT NULL,
     username character varying(50) COLLATE pg_catalog."default" NOT NULL,
     password character varying(100) COLLATE pg_catalog."default" NOT NULL,
     created_at timestamp with time zone NOT NULL DEFAULT now(),

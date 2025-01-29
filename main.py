@@ -16,7 +16,7 @@ def get_role(username) :
     with engine.connect() as conn : 
         query = text("SELECT role FROM user_admin WHERE username = :username")
         result = conn.execute(query, {"username":username}).fetchone()
-        return result
+    return result
 
 def login_page():
     st.title("Login Page")
@@ -33,7 +33,20 @@ def login_page():
         if authenticate(username, password):
             st.session_state.logged_in = True
             st.session_state.username = username
-            st.session_state.role = get_role(username)[0]
+            role_get = get_role(username)
+            st.session_state.role = role_get[0]
+            with engine.connect() as conn : 
+                query = text("select id_user from user_admin where username = :username") 
+                result = conn.execute(query, {"username" : username}).fetchone()
+            id_user = result[0]
+            st.session_state.id_user = id_user  
+            with engine.connect() as conn : 
+                query = text(("""
+                        INSERT INTO operation (start_time, id_user) 
+                        VALUES (NOW(), :id_user)
+                    """))
+                conn.execute(query, {"id_user" : id_user})
+                conn.commit()
             st.experimental_rerun()
         else:  
             st.error("Invalid username or password. Please try again.")
