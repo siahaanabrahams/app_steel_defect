@@ -13,8 +13,7 @@ if "initialized" not in st.session_state:
     st.session_state.uploaded_file = None
 
 def main() :
-    # IMAGE PROCESS
-    def image_data(result):
+    def image_data(result, confidence_threshold):
         boxes = result.boxes
         class_ids = boxes.cls
         confidences = boxes.conf
@@ -22,16 +21,16 @@ def main() :
 
         data = []
         for i in range(len(class_ids)):
-            class_name = result.names[int(class_ids[i])]
-            confidence = confidences[i]
-            x_center, y_center, width, height = xywh[i]
-            x0, y0 = int(x_center - width / 2), int(y_center - height / 2)
-            x1, y1 = int(x_center + width / 2), int(y_center + height / 2)
-            confidence = confidence * 100
-            confidence = f"{confidence:.2f} %"
-            width = f"{width:.2f}"
-            height = f"{height:.2f}"
-            data.append([i + 1, class_name, confidence, x0, x1, y0, y1, width, height])
+            confidence = confidences[i] * 100  # Convert to percentage
+            if confidence >= confidence_threshold:
+                class_name = result.names[int(class_ids[i])]
+                x_center, y_center, width, height = xywh[i]
+                x0, y0 = int(x_center - width / 2), int(y_center - height / 2)
+                x1, y1 = int(x_center + width / 2), int(y_center + height / 2)
+                confidence = f"{confidence:.2f} %"
+                width = f"{width/4:.2f}"
+                height = f"{height/4:.2f}"
+                data.append([i + 1, class_name, confidence, x0, x1, y0, y1, width, height])
         df = pd.DataFrame(
             data,
             columns=[
@@ -70,7 +69,16 @@ def main() :
 
 
     # VIDEO PROCESS
-    def video_process(uploaded_file, model):
+    def video_process(
+        uploaded_file,
+        defect_model,
+        anomaly_model,
+        result_video_placeholder,
+        metrics_placeholder,
+        defects_placeholder,
+        duration_placeholder,
+        confidence_threshold,
+    ):
         video_bytes = uploaded_file.read()
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_file:
             temp_file.write(video_bytes)
@@ -93,78 +101,95 @@ def main() :
         # Retrieve video properties
         frame_rate = int(video_capture.get(cv2.CAP_PROP_FPS))
         total_frames = int(video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
-        video_duration = total_frames / frame_rate
-
-        frame_placeholder = st.empty()
-        duration_placeholder = st.empty()
-        metrics_placeholder = st.empty()
 
         # Initialize variables
         frame_index = 0
         start_time = time.time()
         processed_frames = 0
+        skipped_frames = 0
+        displayed_frames = 0
+        prev_frame_time = start_time  # For FPS calculation
 
         while video_capture.isOpened():
             ret, frame = video_capture.read()
             if not ret or frame_index >= total_frames:
                 break
 
-            # Start timing frame processing
-            frame_processing_start = time.time()
-
             # Run YOLO model on the frame
-            results = model(frame)
-            annotated_frame = results[0].plot()
+            results = defect_model(frame)
+            anomaly_model(frame)
+            # annotated_frame = results[0].plot()
+            # defects_data = image_data(results[0], confidence_threshold)
 
             # Update processed frames count
             processed_frames += 1
 
-            # Calculate the actual elapsed time since playback started
-            elapsed_real_time = time.time() - start_time
+            # Calculate FPS based on frame display rate
+            time_since_last_frame = time.time() - prev_frame_time
+            if time_since_last_frame > 0:
+                display_fps = 1 / time_since_last_frame
+            else:
+                display_fps = 0
 
-            # Determine the expected frame index based on elapsed real-time
-            expected_frame_index = int(elapsed_real_time * frame_rate)
+            # Update previous frame time
+            prev_frame_time = time.time()
 
-            # Update the video frame in Streamlit
-            frame_placeholder.image(
-                annotated_frame, channels="RGB"
-            )
+            # Process the detection details and plot on the frame
+            defects_data_frame = image_data(results[0], confidence_threshold)
+            result_img = image_plot(results[0], defects_data_frame)
 
-            # Calculate processing time for the current frame
-            frame_processing_time = time.time() - frame_processing_start
-            current_fps = (
-                processed_frames / elapsed_real_time if elapsed_real_time > 0 else 0
+            # Display annotated frame and defects data
+            result_video_placeholder.image(
+                result_img, channels="RGB", use_container_width=True
             )
 
-            # Display metrics
-            formatted_elapsed_time = time.strftime(
-                "%H:%M:%S", time.gmtime(elapsed_real_time)
-            )
-            formatted_total_duration = time.strftime(
-                "%H:%M:%S", time.gmtime(video_duration)
-            )
-            duration_placeholder.text(
-                f"Elapsed Time: {formatted_elapsed_time} / {formatted_total_duration}"
-            )
+            # Calculate total frames passed (skipped + displayed)
+            total_frames_passed = skipped_frames + displayed_frames
+
+            # Avoid division by zero
+            if total_frames_passed > 0:
+                skipped_frames_percentage = (skipped_frames * 100) / total_frames_passed
+                displayed_frames_percentage = (displayed_frames * 100) / total_frames_passed
+            else:
+                skipped_frames_percentage = 0
+                displayed_frames_percentage = 0
+
+            # Display metrics first
             metrics_placeholder.text(
                 f"Original FPS: {frame_rate}\n"
-                f"Current FPS: {current_fps:.2f}\n"
-                f"Processing Time per Frame: {frame_processing_time:.3f} seconds"
+                f"Display FPS: {display_fps:.2f}\n"
+                f"Processing Time per Frame: {1/display_fps:.3f} seconds\n"
+                f"Skipped Frames: {skipped_frames}/{total_frames_passed} ({skipped_frames_percentage:.2f}%)\n"
+                f"Displayed Frames: {displayed_frames}/{total_frames_passed} ({displayed_frames_percentage:.2f}%)\n"
+            )
+
+            # Display defects data after metrics
+            defects_placeholder.dataframe(defects_data_frame, use_container_width=True)
+
+            # Display video duration in seconds
+            duration_placeholder.text(
+                f"Video Duration: {time.time() - start_time:.2f} seconds"
             )
 
             # Skip frames to synchronize playback duration
-            frame_index = max(expected_frame_index, frame_index + 1)
+            elapsed_real_time = time.time() - start_time
+            expected_frame_index = int(elapsed_real_time * frame_rate)
+
+            if expected_frame_index > frame_index:
+                skipped_frames += expected_frame_index - frame_index - 1
+                frame_index = expected_frame_index
+
+            displayed_frames += 1
             video_capture.set(cv2.CAP_PROP_POS_FRAMES, frame_index)
 
         video_capture.release()
         os.remove(temp_file_path)
 
 
-    # MODEL LOAD
-    model = YOLO("weight.pt")
+    defect_model = YOLO("weight-defect.pt")
+    anomaly_model = YOLO("weight-anomaly.pt")
 
-    # SIDEBAR
-    file_type = st.sidebar.selectbox("Select file type", ["Image", "Video"])
+    file_type = st.sidebar.selectbox("Select file type", ["Image", "Video"], index=1)
     uploaded_file = None
 
     if file_type == "Image":
@@ -177,39 +202,53 @@ def main() :
             "Upload a video", type=["mp4", "mov", "avi"]
         )
 
-    # Confidence Level
     confidence_level = st.sidebar.slider(
         "Confidence Level", min_value=0, max_value=100, step=10
     )
 
-    # MAIN PAGE
     if uploaded_file is not None:
         if file_type == "Image":
             st.header("Image Detection")
             image = Image.open(uploaded_file)
-            result = model(image, conf=confidence_level / 100)
+            result = defect_model(image, conf=confidence_level / 100)
             result = result[0]
-            data = image_data(result)
+            data = image_data(result, confidence_level)
             result_img = image_plot(result, data)
             col1, col2 = st.columns(2)
             with col1:
                 st.image(image, caption="Upload")
             with col2:
                 st.image(result_img, caption="Result")
-            st.write(data)
+            st.write("Detection Details")
+            st.dataframe(data, use_container_width=True)
 
         elif file_type == "Video":
             st.header("Video Detection")
-
-            # Place the Start button above the video
             start_button = st.button("Start Video")
 
             if start_button:
-                st.empty()  # Removes the Start button after it's clicked
-
-                # Display video
-                col1, col2 = st.columns(2)
+                col1, col2 = st.columns(2)  # Separate the videos
                 with col1:
                     st.video(uploaded_file)
                 with col2:
-                    video_process(uploaded_file, model)
+                    result_video_placeholder = (
+                        st.empty()
+                    )  # Placeholder for the result video processing
+                    duration_placeholder = st.empty()  # Placeholder for video duration
+
+                # First create placeholders in the desired order
+                st.subheader("Detection Metrics and Details")
+                metrics_placeholder = st.empty()  # Metrics will appear first
+                defects_placeholder = st.empty()  # Defects table will appear second
+
+                # Process video with the new order of placeholders
+                video_process(
+                    uploaded_file,
+                    defect_model,
+                    anomaly_model,
+                    result_video_placeholder,
+                    metrics_placeholder,
+                    defects_placeholder,
+                    duration_placeholder,
+                    confidence_level,
+                )

@@ -10,7 +10,7 @@ def start_streamlit_app():
         [
             "streamlit",
             "run",
-            "app.py",
+            "main.py",
             "--server.headless=true",
             "--server.port=8501",
         ]
