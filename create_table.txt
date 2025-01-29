@@ -3,74 +3,127 @@
 BEGIN;
 
 
-CREATE TABLE IF NOT EXISTS public.anomaly
+CREATE TABLE IF NOT EXISTS public.final_defect
 (
-    id serial NOT NULL,
-    path_gambar character varying COLLATE pg_catalog."default" NOT NULL,
-    created_at timestamp without time zone NOT NULL,
-    CONSTRAINT anomaly_pkey PRIMARY KEY (id)
-);
-
-CREATE TABLE IF NOT EXISTS public.defect
-(
-    id serial NOT NULL,
+    id_final integer NOT NULL DEFAULT nextval('final_id_seq'::regclass),
     path_gambar character varying COLLATE pg_catalog."default" NOT NULL,
     class character varying COLLATE pg_catalog."default" NOT NULL,
-    conf_level character varying COLLATE pg_catalog."default" NOT NULL,
+    conf_level integer NOT NULL,
     x0 integer NOT NULL,
     y0 integer NOT NULL,
     x1 integer NOT NULL,
     y1 integer NOT NULL,
-    created_at timestamp without time zone NOT NULL,
-    CONSTRAINT defect_pkey PRIMARY KEY (id)
+    id_anomaly integer,
+    id_defect integer,
+    id_user integer NOT NULL,
+    id_training integer,
+    created_at time with time zone NOT NULL DEFAULT now(),
+    CONSTRAINT final_pkey PRIMARY KEY (id_final)
 );
 
-CREATE TABLE IF NOT EXISTS public.final
+CREATE TABLE IF NOT EXISTS public.operation
 (
-    id serial NOT NULL,
-    anomaly_id integer NOT NULL,
-    defect_id integer NOT NULL,
-    user_id integer NOT NULL,
+    id_operation serial NOT NULL,
+    start_time timestamp with time zone NOT NULL DEFAULT now(),
+    end_time time with time zone NOT NULL DEFAULT now(),
+    created_at time with time zone NOT NULL DEFAULT now(),
+    id_user integer NOT NULL,
+    CONSTRAINT operation_pkey PRIMARY KEY (id_operation)
+);
+
+CREATE TABLE IF NOT EXISTS public.production_anomaly
+(
+    id_anomaly integer NOT NULL DEFAULT nextval('anomaly_id_seq'::regclass),
+    path_gambar character varying COLLATE pg_catalog."default" NOT NULL,
+    conf_level integer NOT NULL,
+    xo integer NOT NULL,
+    y0 integer NOT NULL,
+    x1 integer NOT NULL,
+    y1 integer NOT NULL,
+    created_at time with time zone DEFAULT now(),
+    CONSTRAINT anomaly_pkey PRIMARY KEY (id_anomaly)
+);
+
+CREATE TABLE IF NOT EXISTS public.production_defect
+(
+    id_defect integer NOT NULL DEFAULT nextval('defect_id_seq'::regclass),
     path_gambar character varying COLLATE pg_catalog."default" NOT NULL,
     class character varying COLLATE pg_catalog."default" NOT NULL,
-    conf_level character varying COLLATE pg_catalog."default" NOT NULL,
+    conf_level integer NOT NULL,
     x0 integer NOT NULL,
     y0 integer NOT NULL,
     x1 integer NOT NULL,
     y1 integer NOT NULL,
-    created_at timestamp without time zone NOT NULL,
-    CONSTRAINT final_pkey PRIMARY KEY (id)
+    created_at time with time zone NOT NULL DEFAULT now(),
+    CONSTRAINT defect_pkey PRIMARY KEY (id_defect)
+);
+
+CREATE TABLE IF NOT EXISTS public.training
+(
+    id_training integer NOT NULL DEFAULT nextval('training_id_seq'::regclass),
+    path_weight character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    start_time timestamp with time zone NOT NULL,
+    end_time timestamp with time zone NOT NULL,
+    "mAP50" integer NOT NULL,
+    "precision" integer NOT NULL,
+    recall integer NOT NULL,
+    id_user integer NOT NULL,
+    CONSTRAINT training_pkey PRIMARY KEY (id_training)
 );
 
 CREATE TABLE IF NOT EXISTS public.user_admin
 (
-    user_id serial NOT NULL,
+    id_user integer NOT NULL DEFAULT nextval('users_user_id_seq'::regclass),
     username character varying(50) COLLATE pg_catalog."default" NOT NULL,
     password character varying(100) COLLATE pg_catalog."default" NOT NULL,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    role character varying(20) COLLATE pg_catalog."default",
-    CONSTRAINT users_pkey PRIMARY KEY (user_id)
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    role character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT users_pkey PRIMARY KEY (id_user)
 );
 
-ALTER TABLE IF EXISTS public.final
-    ADD CONSTRAINT foreign_anomaly FOREIGN KEY (anomaly_id)
-    REFERENCES public.anomaly (id) MATCH SIMPLE
+ALTER TABLE IF EXISTS public.final_defect
+    ADD CONSTRAINT foreign_anomaly FOREIGN KEY (id_anomaly)
+    REFERENCES public.production_anomaly (id_anomaly) MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE NO ACTION
     NOT VALID;
 
 
-ALTER TABLE IF EXISTS public.final
-    ADD CONSTRAINT foreign_defect FOREIGN KEY (defect_id)
-    REFERENCES public.defect (id) MATCH SIMPLE
+ALTER TABLE IF EXISTS public.final_defect
+    ADD CONSTRAINT foreign_defect FOREIGN KEY (id_defect)
+    REFERENCES public.production_defect (id_defect) MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE NO ACTION
     NOT VALID;
 
 
-ALTER TABLE IF EXISTS public.final
-    ADD CONSTRAINT foreign_user FOREIGN KEY (user_id)
-    REFERENCES public.user_admin (user_id) MATCH SIMPLE
+ALTER TABLE IF EXISTS public.final_defect
+    ADD CONSTRAINT foreign_training FOREIGN KEY (id_training)
+    REFERENCES public.training (id_training) MATCH SIMPLE
+    ON UPDATE NO ACTION
+    ON DELETE NO ACTION
+    NOT VALID;
+
+
+ALTER TABLE IF EXISTS public.final_defect
+    ADD CONSTRAINT foreign_user FOREIGN KEY (id_user)
+    REFERENCES public.user_admin (id_user) MATCH SIMPLE
+    ON UPDATE NO ACTION
+    ON DELETE NO ACTION
+    NOT VALID;
+
+
+ALTER TABLE IF EXISTS public.operation
+    ADD CONSTRAINT foreign_user FOREIGN KEY (id_user)
+    REFERENCES public.user_admin (id_user) MATCH SIMPLE
+    ON UPDATE NO ACTION
+    ON DELETE NO ACTION
+    NOT VALID;
+
+
+ALTER TABLE IF EXISTS public.training
+    ADD CONSTRAINT foreign_user FOREIGN KEY (id_user)
+    REFERENCES public.user_admin (id_user) MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE NO ACTION
     NOT VALID;
