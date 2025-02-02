@@ -2,6 +2,7 @@ import streamlit as st
 import page_main
 import page_detect
 import page_admin
+import page_label
 from sqlalchemy import create_engine, text 
 
 DB_URL = "postgresql+pg8000://postgres:abraham@localhost:5432/postgres"
@@ -12,7 +13,7 @@ def main():
         st.warning("Please log in first.")
         return
     
-    menu_option = st.sidebar.selectbox("Pilih Menu", ("Main Page", "Detect", "Admin Page"))
+    menu_option = st.sidebar.selectbox("Pilih Menu", ("Main Page", "Detect", "Label", "Admin Page"))
 
     if menu_option == 'Main Page': 
         page_main.main()
@@ -20,6 +21,8 @@ def main():
         page_detect.main()
     elif menu_option == 'Admin Page' :
         page_admin.main()
+    elif menu_option == 'Label' :
+        page_label.main()
 
     if st.sidebar.button("Logout"):
         id = st.session_state.id_user
