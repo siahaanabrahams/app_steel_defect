@@ -1,3 +1,7 @@
+"""
+Desktop module.
+"""
+
 import subprocess
 
 import webview
@@ -6,7 +10,7 @@ PORT = 8500
 
 
 def start_streamlit_app():
-    # Run Streamlit in headless mode using subprocess
+    """Run Streamlit in headless mode using subprocess"""
     subprocess.Popen(
         [
             "streamlit",

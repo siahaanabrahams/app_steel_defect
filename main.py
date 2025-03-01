@@ -1,3 +1,7 @@
+"""
+Main streamlit module.
+"""
+
 import streamlit as st
 
 import src.menu_page as menu_page
